@@ -6,337 +6,6 @@ Finite Size Effects - PGF Sensitivity Analysis
 """
 
 
-    
-#%% Code for other FSE winkler measure plots
-    
- 
-import numpy as np
-import pandas as pd
-import scipy
-import math
-from scipy import stats
-import matplotlib.pyplot as plt
-import networkx as nx
-from collections import Counter
-
-
-def Union(fir, sec): #k = nodes dealt with ## v is the current node
-    if type(fir) is int:
-        fir = [fir]
-    if type(sec) is int:
-        sec = [sec]
-    c = Counter(fir + sec)
-    final = list(c.keys())
-    return final
-
-def setDiff(fir, sec):
-    if type(fir) is int:
-        fir = [fir]
-    if type(sec) is int:
-        sec = [sec]
-    
-    diff = []
-    for item in fir:
-        if item not in sec:
-            diff.append(item)
-    
-    diff.sort()
-    return diff
-
-
-def plottingInd(n, deg, pgfSimOutbreak, giantComps, winklerMeasure, true_outbreak):
-    
-    fig2 = plt.figure(figsize=(10,7))
-    
-    print(winklerMeasure)
-
-    plt.axis([0,1,0,1])
-    plt.title("ER G(%d, <%.1f>)" %(n, deg))
-    plt.xlabel("Predicted from PGF")
-    plt.ylabel("Measured Giant Component in Simulations")
-    plt.errorbar(pgfSimOutbreak,giantComps, xerr= winklerMeasure, fmt = "o")
-    plt.plot(true_outbreak, true_outbreak, color ='green', marker = '*', markersize =20 )
-    plt.show()  
-    
-
-
-
-# Start of loops
-excessDegree = [.5, 1, 1.5, 2]
-
-numTrials = 100
-exp = 3
-maxk = 100
-
-for deg in excessDegree:
-    
-    outbreakSize = np.zeros((exp, numTrials)) #Creating matrices 
-    giantComps = np.zeros((exp, numTrials))
-    pgfSimOutbreak = np.zeros((exp, numTrials))
-    sdGiantComp = np.zeros(exp)
-    winklerSD = np.zeros(exp)
-    winklerMeasure = np.zeros((exp, numTrials))
-    
-    
-    for N in range(1, exp+1):
-        n = 10**(N) # population size
-            
-        prob = deg/n # probability of connection 
-        
-        true_p_k_infinite = []
-        for k in range(maxk):
-            true_p_k_infinite.append(scipy.special.binom(n-1, k)*prob**(k)*(1-prob)**(n-1-k))
-            
-        print(sum(true_p_k_infinite))
-        
-        #Derivative
-        true_prime_infinite = []
-        
-        for p in range(len(true_p_k_infinite)-1):
-            true_prime_infinite.append(true_p_k_infinite[p+1]*(p+1))
-        
-        
-        
-        # Get giant component for the true p_k's 
-        true_p_k_infinite[1] = true_p_k_infinite[1] - 1   
-        true_p_k_infinite.reverse()    
-        fun = np.poly1d(true_p_k_infinite)
-        
-        
-        true_prime_infinite.reverse()
-          
-            
-        prime = np.poly1d(true_prime_infinite)
-        
-        true_root = []
-        all_roots = []
-        
-        if sum(true_prime_infinite) > 1:
-            all_roots = np.roots(true_p_k_infinite)
-        else:
-            true_root = 1   
-            
-        if len(all_roots) > 1:
-            all_roots = all_roots[np.isreal(all_roots)]
-            all_roots = all_roots[all_roots>0]
-            true_root = min(all_roots)
-            true_root = true_root.real
-            
-        true_outbreak = 1-true_root   
-        
-        
-        phiCoeff = np.ones(maxk)
-        phi = np.poly1d(phiCoeff)
-
-        pks = np.array(true_p_k_infinite)
-        pks = pks[pks != 0] #takes out the zeros for the winkler computation
-        denomP = sum(np.true_divide(1, pks))
-        
-        winklerMeasureInfinite = (1/np.abs(prime(true_root))) * np.abs(np.linalg.norm([phi(true_root)], 2))/(true_root * np.linalg.norm([true_p_k_infinite ], 1))* np.sqrt(2/(math.pi*n*denomP))
-        
-        for t in range(0, numTrials):
-            
-            
-            G = nx.erdos_renyi_graph(n, prob)
-            # nx.draw(G)
-            # plt.show()
-            
-            # Calculate N_k frequencies
-
-            degrees = []
-            for v in nx.nodes(G):
-                degrees.append(nx.degree(G, v))
-                
-            N_k = []    
-            for degVal in range(max(degrees)): # max of degrees instead of the half of it
-                N_k.append(degrees.count(degVal))
-            
-            p_k_sim = np.true_divide(N_k, n)  
-            
-        
-            #p_k_sim = [i for i in p_k_sim if i != 0] # Calculate probabilities from the random simulation 
-            # Take this out because it could be truncating
-            
-            observedError = []
-            
-            for val in p_k_sim:
-                observedError.append(np.sqrt(val/n)) #Retrieve observed error
-            #Use these to find true coefficients 
-            
-            
-            true_p_k_sim = []  
-            for h in range(len(p_k_sim)):
-                temp = p_k_sim[h] - observedError[h] 
-                if temp < 0:
-                    temp = 0
-                true_p_k_sim.append(temp) 
-            
-            
-            # # Derivative of noisy simulated coeefficients
-            p_k_sim_prime = []
-            
-            for p in range(len(p_k_sim)-1):
-                p_k_sim_prime.append(p_k_sim[p+1]*(p+1))
-                
-                
-            true_p_k_sim_prime = []    
-            for p in range(len(true_p_k_sim)-1):
-                true_p_k_sim_prime.append(true_p_k_sim[p+1]*(p+1))    
-             #Calculating the outbreak from the true coefficients via PGFs 
-            # Get giant component for the true p_k's 
-                
-            if len(p_k_sim)< 2:
-                np.append(p_k_sim,-1)
-            else:     
-                p_k_sim[1] = p_k_sim[1] - 1   
-            np.flip(p_k_sim)    
-            fun = np.poly1d(p_k_sim)
-        
-        
-        
-            sim_root = []
-            all_roots = []
-        
-            if sum(p_k_sim_prime) > 1:
-                all_roots = np.roots(p_k_sim)
-                
-                if len(all_roots) > 1:
-                    all_roots = all_roots.real
-                    all_roots = all_roots[all_roots>0]
-                    sim_root = min(all_roots)
-                    sim_root = sim_root.real
-                else:
-                    sim_root = all_roots.real
-            else:
-                sim_root = 1   
-            
-           
-            
-             
-                
-            pgfSimOutbreak[N-1, t]  = 1-sim_root
-            
-            
-            
-            
-            # Find all neighbors
-            neighbors = []
-            for i in range(0,n):
-                temp = list(G.neighbors(i))
-                neighbors.append(temp)
-            
-            
-            x = np.zeros(n) # index which connect comp a node is a part of
-            numComp = 0 # Number of components tat the start
-            k = [] # Nodes dealt with
-            
-            # Loop over nodes to see which component they are in
-            for j in range(0,n):
-                if x[j] == 0:
-                    numComp = numComp + 1
-                    v = []
-                    v.append(j) # set of nodes in the current component
-                    while v != []:
-                        x[v[0]] = numComp     # assigning node to its component
-                        k = Union(k,v[0])              # Combines current node to the comp
-                        p = setDiff(neighbors[v[0]], k)# Finds the neighbors not in comp yet
-                        v = setDiff(v, v[0])           # Gets ride of node in stack
-                        v = Union(v,p) # preps nodes to be added to component
-                        
-                        
-                        
-                        
-            # Figure out size of components    
-            
-            c = np.zeros(int(max(x))) # Number of components  
-            
-            lengths = Counter(x).values() # Sizes of components
-            
-            outbreakSize[N-1,t] = max(lengths) # Size of largest component 
-            
-            giantComps[N-1,t] = outbreakSize[N-1,t]/n# Percentage of population
-                
-           
-
-            phiCoeff = np.ones(maxk)
-            phi = np.poly1d(phiCoeff)
-            
-
-
-            #Compute Winkler measures for each graph 
-            # Computes the expected change in the root over the expected change in the coefficients
-            
-            
-            pks = np.array(true_p_k_infinite)
-            
-            pks = pks[pks != 0] #takes out the zeros for the winkler computation
-            
-            denomP = sum(np.true_divide(1, pks))
-
-            winklerMeasure[N-1,t] = (1/np.abs(prime(true_root))) * np.abs(np.linalg.norm([phi(true_root)], 2))/(true_root * np.linalg.norm([denomP], 1))* np.sqrt(2/(math.pi*n)*(denomP))
-
-            #print("Winkler's Measure: %.2f for N = %d" %(winklerMeasure[N-1,t], n))
-            
-        #sdGiantComp[N-1] =  np.std(giantComps[N-1]) # Calculate the SD for each population size  
-        #winklerSD[N-1] = np.std(winklerMeasure[N-1])  
-            
-        #plot for each population
-          
-            
-            
-    pop_size = [10, 100, 1000, 10000]
-       
-    probs = np.true_divide(deg,pop_size)
-    
-   # print(winklerMeasure)
-    
-    for h in range(len(sdGiantComp)):
-        print("Population size %d with probability %.3f and excess degree of %.1f has a SD of %.4f" %    (pop_size[h], probs[h], deg, sdGiantComp[h]))
-    
-
-    #Plotting
-
-    plottingInd(n, deg, pgfSimOutbreak[N-1,:], giantComps[N-1,:], winklerMeasure[N-1,:], true_outbreak)  
-
-    pop_10 = giantComps[0]
-    pop_100 = giantComps[1]
-    pop_1000 = giantComps[2] 
-    # pop_10000 = giantComps[3]
- 
-    data = [pop_10, pop_100, pop_1000]
-    #data = [pop_10, pop_100, pop_1000, pop_10000]
-
-    # fig = plt.figure(figsize=(10, 7))
-    
-   
-    # plt.axis([0,5,0,1])
-    # plt.title("Giant Component sizes for Excess Degree %.1f" %deg)
-    # plt.boxplot(data)
-    # plt.xlabel("Population Size with base 10")
-    # plt.ylabel("Giant Component Proportion of Population")
-    # plt.axhline(true_outbreak, c = 'r')
-    # plt.show()  
-    
-    # colors = ["red", "blue" , "green", "orange", "purple"]
-    # labels = ["N = 10", "N = 100", "N = 1000", "N = 10000"]
-    # ncolor = 0
-    # for r in range(0,exp):
-    #     plt.scatter(pgfSimOutbreak[r],giantComps[r], color=colors[ncolor], label=labels[ncolor])
-    #     plt.errorbar(pgfSimOutbreak[r],giantComps[r], xerr= winklerMeasure[r], fmt = "o", color=colors[ncolor])
-    #     ncolor+=1
-    
-    # inf_vert_line = np.linspace(0,1)
-    # outbreak_line = [true_outbreak]* len(inf_vert_line)
-    # winklerInfiniteError = [winklerMeasureInfinite] * len(inf_vert_line)
-    
-    # plt.title("Giant Component sizes with Winkler Measure for Excess Degree %.1f" %deg) 
-    # plt.axis([-0.1,1,0,1])
-    # plt.xlabel('Infinite Outbreak')
-    # plt.ylabel('Simulated Outbreak')
-    # #plt.errorbar(inf_vert_line, inf_vert_line, xerr = winklerInfiniteError, color = 'purple' , ecolor = 'lightgray' ) 
-    # plt.plot(true_outbreak, true_outbreak, color ='orange', marker = 'x', markersize = 10)
-    # plt.legend()
-    # plt.show()
 
 
 #%% Plotting a different graph, need to change the for loop ordering
@@ -433,13 +102,15 @@ def adjustedPoly(pgfCoeff, trunc):
     for p in preG1:
         if p <= trunc:
             preG1[c] = trunc
-            #print("Trunc occurs at %.4f" %trunc)
         c += 1    
     
     # Renormalize after truncation
-    preG1 = preG1/np.sum(preG1)
-    # print("After trunc")
-    # print(preG1)
+        
+    if np.sum(preG1) == 0:
+        preG1 = np.zeros(1)
+    else:
+        preG1 = preG1/np.sum(preG1)
+   
     
     if preG1.size > 11:
         preG1 = preG1[0:11]
@@ -451,9 +122,9 @@ def adjustedPoly(pgfCoeff, trunc):
             np.append(preG1, trunc)
         preG1 = preG1/np.sum(preG1)    
     
-    # print("After setting to 11")
-    # print(preG1)
-    
+    checkAvgK = derivative(preG1)
+    print("Average K:")
+    print(np.sum(checkAvgK))
     
     return preG1
 
@@ -737,6 +408,7 @@ def runFSE(excessDegree, numTrials, exp, maxk):
             n = 10**(N) # population size
                 
             prob = deg/(n-1) # probability of connection 
+            print('Degree: %.2f' %deg)
             
             # Calculating the true outbreak from a ER graph
             true_p_k_infinite_G0 = ERCoeff(maxk, prob, n)
@@ -828,7 +500,10 @@ def runFSE(excessDegree, numTrials, exp, maxk):
                     
                     giantComps[count, t] = outbreakSize[count,t]/n# Percentage of population
                     
-                    winklerMeasure[count, t]=  winklerTrunc(n, true_root, p_k_sim_G1, cutoff)
+                    
+                    thresh = 1/n
+                    
+                    winklerMeasure[count, t]=  winklerTrunc(n, true_root, p_k_sim_G1, thresh)
                     
                     
                     
@@ -840,12 +515,12 @@ def runFSE(excessDegree, numTrials, exp, maxk):
                     #(1/np.abs(prime(true_root))) * np.abs(np.linalg.norm([phi(true_root)], 2))/(true_root * np.linalg.norm([denomP], 1))* np.sqrt(2/(math.pi*n)*(denomP))
                 
             
-            print(winkler100s) #check this out
+            #print(winkler100s) #check this out
             winkler100sAvg = np.zeros((4))
             for h in range(len(winkler100s)):
                 winkler100sAvg[h] = np.sum(winkler100s[h])/numTrials
             
-            print(winkler100sAvg)
+            #print(winkler100sAvg)
             plotWink[count,:] = winkler100sAvg
             plotWinkInf[count,:] = winklerInf100s
             
@@ -881,7 +556,7 @@ def runFSE(excessDegree, numTrials, exp, maxk):
 excessDegree = [.5, 1, 1.5, 2]
 numTrials = 100
 exponent = 3
-maxk = 100    
+maxk = 11
 runFSE(excessDegree, numTrials, exponent, maxk)
 
 
@@ -932,7 +607,6 @@ def plotting_S_and_k():
            
             true_root, true_outbreak[count] = pgfOutbreak(true_prime_infinite_G1)
             
-           
             thresh = 1/n
             
             # if (deg >= 2) and (n > 10):
