@@ -408,18 +408,18 @@ def main(r0, k, col, numSD, inc, maxk):
     return slopes(standDevs, sdValues, r0, k)
     #violins(U)
     #ridgePlots(U)    
-    # return winklerMeasures    
+    #return winklerMeasures    
     
     
             
 #%% Running violins
         
-r0 = 3.9
-k = 0.09
+r0 = 2.3
+k = 0.19
 col = 100
 numSD = 20
 inc = 0.01
-maxk = 15
+maxk = 11
 # need to incorporate the noisy values into the measure
 winklerValues = main(r0, k, col, numSD, inc, maxk)
 
