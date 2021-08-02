@@ -188,15 +188,15 @@ def convertFactor(n, pks):
     #             print("NEGATIVE")
     
     
-    if pks.size > 1:
-            if pks.size >= 2: 
-                pks[1] = pks[1] - 1
+    # if pks.size > 1:
+    #         if pks.size >= 2: 
+    #             pks[1] = pks[1] - 1
                
-            else:
-                pks = np.append(pks, -1)
+    #         else:
+    #             pks = np.append(pks, -1)
                 
-    else:
-        pks = np.array([0,-1])
+    # else:
+    #     pks = np.array([0,-1])
    
     
     pks = abs(pks)

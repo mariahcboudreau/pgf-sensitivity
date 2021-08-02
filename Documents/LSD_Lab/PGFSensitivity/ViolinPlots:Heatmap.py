@@ -535,7 +535,7 @@ def selfConsistant(g1self, trunc, infinite):
     
     if g1self.size > 1:
         if g1self.size > 2: 
-            g1self[1] = g1[1] - 1
+            g1self[1] = g1self[1] - 1
         elif g1self.size > 1:
             g1self = np.append(g1self, -1)
     else:
@@ -584,15 +584,15 @@ def convertFactor(n, pks):
     #             print("NEGATIVE")
     
     
-    if pks.size > 1:
-            if pks.size >= 2: 
-                pks[1] = pks[1] - 1
+    # if pks.size > 1:
+    #         if pks.size >= 2: 
+    #             pks[1] = pks[1] - 1
                
-            else:
-                pks = np.append(pks, -1)
+    #         else:
+    #             pks = np.append(pks, -1)
                 
-    else:
-        pks = np.array([0,-1])
+    # else:
+    #     pks = np.array([0,-1])
    
     
     pks = abs(pks)
@@ -783,7 +783,7 @@ def mainWithTrueCoef(r0, k, col, numSD, inc, maxk):
             g1 = g1/np.sum(g1)
             g1True = g1True/np.sum(g1True)
             
-            thresh = 1/1000
+            thresh = 1/10000
             
            #Solving for the pgf
             root, outbreak = pgfOutbreak(g1, thresh, True)
@@ -792,7 +792,7 @@ def mainWithTrueCoef(r0, k, col, numSD, inc, maxk):
             S[n,j] = outbreak
             
             
-            compSens[n,j] = winklerTrunc(1000, U[0,0], g1True, g1, thresh)
+            compSens[n,j] = winklerTrunc(10000, U[0,0], g1True, g1, thresh)
             
             
     
@@ -803,8 +803,8 @@ def mainWithTrueCoef(r0, k, col, numSD, inc, maxk):
 
 def heatmap(dim, col, numSD, inc, maxk):
     
-    rh = 4/dim
-    kh = .25/dim
+    rh = 2/dim
+    kh = .15/dim
     
     M = (dim-2)**2
     
@@ -816,7 +816,7 @@ def heatmap(dim, col, numSD, inc, maxk):
     
     for b in range(1,dim-1):
         
-        r = 1+rh*b # Value for R0 for each iteration
+        r = 1.5+rh*b # Value for R0 for each iteration
         
         for c in range(1,dim-1):
             
@@ -852,4 +852,8 @@ sns.heatmap(data_2_plot, cmap = "Greens")
 
     
 #%% Debugging 
-x = mainWithTrueCoef(2.3, 0., 5, 2, 0.01, 11)
+
+x = np.zeros(10)
+for ks in range(0.1,0.2,0.01)
+
+    x[] = mainWithTrueCoef(2, ks, 5, 3, 0.01, 11)
